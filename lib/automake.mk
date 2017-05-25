@@ -83,6 +83,8 @@ lib_libopenvswitch_la_SOURCES = \
 	lib/dpif-provider.h \
 	lib/dpif.c \
 	lib/dpif.h \
+	lib/dpif_log_acc.c \
+	lib/dpif_log_acc.h \
 	lib/heap.c \
 	lib/heap.h \
 	lib/dynamic-string.c \

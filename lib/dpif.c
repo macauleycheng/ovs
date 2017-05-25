@@ -50,6 +50,7 @@
 #include "valgrind.h"
 #include "openvswitch/ofp-errors.h"
 #include "openvswitch/vlog.h"
+#include "dpif_log_acc.h"
 
 VLOG_DEFINE_THIS_MODULE(dpif);
 
@@ -1315,6 +1316,7 @@ dpif_operate(struct dpif *dpif, struct dpif_op **ops, size_t n_ops)
 
                     COVERAGE_INC(dpif_flow_put);
                     log_flow_put_message(dpif, put, error);
+                    log_flow_put_message_acc(dpif, put, error, op->u.execute.packet);
                     if (error && put->stats) {
                         memset(put->stats, 0, sizeof *put->stats);
                     }
@@ -1338,6 +1340,7 @@ dpif_operate(struct dpif *dpif, struct dpif_op **ops, size_t n_ops)
 
                     COVERAGE_INC(dpif_flow_del);
                     log_flow_del_message(dpif, del, error);
+                    log_flow_del_message_acc(dpif, del, error);
                     if (error && del->stats) {
                         memset(del->stats, 0, sizeof *del->stats);
                     }
