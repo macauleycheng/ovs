@@ -37,6 +37,8 @@
 #include "util.h"
 #include "vswitch-idl.h"
 
+#define COOKIE_ACCTON_FLOW      0xacc00acc
+
 VLOG_DEFINE_THIS_MODULE(physical);
 
 void
@@ -575,6 +577,36 @@ consider_port_binding(enum mf_field_id mff_ovn_geneve,
         }
         ofctrl_add_flow(flow_table, OFTABLE_LOG_TO_PHY, 100, 0,
                         &match, ofpacts_p);
+
+/* accton's patch for vxlan tunnel */
+#if 1
+        /* Table 4, Priority 100.
+         * =======================
+         *
+         * setup rule for each local vif
+         * to load zone_id for packets from vxlan tunnel */
+        {
+            struct eth_addr dst_mac = {{{0}}};
+
+            match_init_catchall(&match);
+            ofpbuf_clear(ofpacts_p);
+
+            if (ovs_scan(binding->mac[0], ETH_ADDR_SCAN_FMT,
+                         ETH_ADDR_SCAN_ARGS(dst_mac))) {
+                match_set_dl_dst(&match, dst_mac);
+
+                if (zone_ids.ct) {
+                    put_load(zone_ids.ct, MFF_LOG_CT_ZONE, 0, 32, ofpacts_p);
+                }
+                put_resubmit(OFTABLE_LOG_INGRESS_PIPELINE, ofpacts_p);
+
+                ofctrl_add_flow(
+                    flow_table, OFTABLE_DA_TO_CT_ZONE, 100,
+                    COOKIE_ACCTON_FLOW, &match, ofpacts_p);
+            }
+        }
+#endif
+
     } else if (!tun) {
         /* Remote port connected by localnet port */
         /* Table 33, priority 100.
@@ -895,6 +927,26 @@ physical_run(struct controller_ctx *ctx, enum mf_field_id mff_ovn_geneve,
                               &ofpacts, flow_table);
     }
 
+/* accton's patch for vxlan tunnel */
+#if 1
+    /* Table 4, priority 0.
+     * =======================
+     * default rule, resubmit to OFTABLE_LOG_INGRESS_PIPELINE */
+    {
+        struct match match;
+        struct ofpbuf ofpacts;
+
+        ofpbuf_init(&ofpacts, 0);
+        match_init_catchall(&match);
+
+        /* Resubmit to first logical ingress pipeline table. */
+        put_resubmit(OFTABLE_LOG_INGRESS_PIPELINE, &ofpacts);
+        ofctrl_add_flow(flow_table, OFTABLE_DA_TO_CT_ZONE,
+                        0, COOKIE_ACCTON_FLOW, &match, &ofpacts);
+    }
+
+#endif
+
     /* Handle output to multicast groups, in tables 32 and 33. */
     const struct sbrec_multicast_group *mc;
     struct ofpbuf remote_ofpacts;
@@ -972,7 +1024,14 @@ physical_run(struct controller_ctx *ctx, enum mf_field_id mff_ovn_geneve,
             /* For packets received from a vxlan tunnel, set a flag to that
              * effect. */
             put_load(1, MFF_LOG_FLAGS, MLF_RCV_FROM_VXLAN_BIT, 1, &ofpacts);
+
+/* accton's patch for vxlan tunnel */
+#if 1
+            /* Ues table 4 to load zone id for packets from vxlan tunnel. */
+            put_resubmit(OFTABLE_DA_TO_CT_ZONE, &ofpacts);
+#else
             put_resubmit(OFTABLE_LOG_INGRESS_PIPELINE, &ofpacts);
+#endif
 
             ofctrl_add_flow(flow_table, OFTABLE_PHY_TO_LOG, 100, 0, &match,
                             &ofpacts);

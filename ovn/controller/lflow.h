@@ -49,6 +49,12 @@ struct uuid;
  * These are heavily documented in ovn-architecture(7), please update it if
  * you make any changes. */
 #define OFTABLE_PHY_TO_LOG            0
+
+/* accton's patch for vxlan tunnel */
+#if 1
+#define OFTABLE_DA_TO_CT_ZONE         4 /* Load ct zone for vxlan tunnel.    */
+#endif
+
 #define OFTABLE_LOG_INGRESS_PIPELINE  8 /* First of LOG_PIPELINE_LEN tables. */
 #define OFTABLE_REMOTE_OUTPUT        32
 #define OFTABLE_LOCAL_OUTPUT         33
